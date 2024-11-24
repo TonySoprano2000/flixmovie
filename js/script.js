@@ -48,7 +48,7 @@ async function getPopularMovies() {
 
 async function getPopularTvShows() {
   const { results } = await fetchApiData('tv/popular');
-  console.log(results);
+  /* console.log(results); */
 
   results.forEach((show) => {
     const div = document.createElement('div');
@@ -78,11 +78,13 @@ async function displayMovieDetails() {
   console.log(movieId);
 
   const movie = await fetchApiData(`movie/${movieId}`);
+  // Overlay for background image
+  displayBackgroundImage('movie', movie.backdrop_path);
   const div = document.createElement('div');
   div.innerHTML = `   <div class="details-top">
           <div>
             <img
-              src="https://image.tmdb.org/t/p/w500${movie.poster_path}"
+              src="https://image.tmdb.org/t/p/original${movie.poster_path}"
               class="card-img-top"
               alt="${movie.title}"
             />
@@ -129,6 +131,70 @@ async function displayMovieDetails() {
         </div>`;
 
   document.getElementById('movie-details').appendChild(div);
+}
+
+function displayBackgroundImage(type, backgroundPath) {
+  const overlayDiv = document.createElement('div');
+  overlayDiv.style.backgroundImage = `url(https://image.tmdb.org/t/p/original/${backgroundPath})`;
+  overlayDiv.style.backgroundSize = 'cover';
+  overlayDiv.style.backgroundPosition = 'center';
+  overlayDiv.style.backgroundRepeat = 'no-repeat';
+  overlayDiv.style.height = '100vh';
+  overlayDiv.style.width = '100vw';
+  overlayDiv.style.position = 'absolute';
+  overlayDiv.style.top = '0';
+  overlayDiv.style.left = '0';
+  overlayDiv.style.zIndex = '-1';
+  overlayDiv.style.opacity = '0.1';
+
+  if (type === 'movie') {
+    document.getElementById('movie-details').appendChild(overlayDiv);
+  } else {
+    document.getElementById('show-details').appendChild(overlayDiv);
+  }
+}
+
+async function displaySlider() {
+  const { results } = await fetchApiData('movie/now_playing');
+  console.log(results);
+  results.forEach((result) => {
+    const div = document.createElement('div');
+    div.classList.add('swiper-slide');
+    div.innerHTML = ` 
+            <a href="movie-details.html?id=${result.id}">
+              <img src="https://image.tmdb.org/t/p/w500${result.poster_path}" alt="${result.title}" />
+            </a>
+            <h4 class="swiper-rating">
+              <i class="fas fa-star text-secondary"></i> ${result.vote_average} /10 
+            </h4>
+           `;
+    document.querySelector('.swiper-wrapper').appendChild(div);
+    initSwiper();
+  });
+}
+
+function initSwiper() {
+  const swiper = new Swiper('.swiper', {
+    slidesPerView: 1,
+    spaceBetween: 30,
+    freeMode: true,
+    loop: true,
+    autoplay: {
+      delay: 4000,
+      disableOnInteraction: false,
+    },
+    breakpoints: {
+      500: {
+        slidesPerView: 2,
+      },
+      700: {
+        slidesPerView: 3,
+      },
+      1200: {
+        slidesPerView: 4,
+      },
+    },
+  });
 }
 
 async function displayTvShowDetails() {
@@ -206,6 +272,7 @@ async function fetchApiData(endpoint) {
 // Init App
 function init() {
   if (global.currentPage === '/' || global.currentPage === '/index.html') {
+    displaySlider();
     getPopularMovies();
   } else if (global.currentPage === '/shows.html') {
     getPopularTvShows();
@@ -219,5 +286,4 @@ function init() {
 
   highlightActiveLink();
 }
-
 document.addEventListener('DOMContentLoaded', init);
