@@ -1,5 +1,15 @@
 const global = {
   currentPage: window.location.pathname,
+  search: {
+    term: '',
+    type: '',
+    page: 1,
+    totalPages: 1,
+  },
+  api: {
+    apiUrl: 'https://api.themoviedb.org/3/',
+    apiKey: 'f6fae4956dab7f7476dab631a534eac7',
+  },
 };
 
 // Highlight active links
@@ -18,12 +28,13 @@ function showSpinner() {
 function hideSpinner() {
   document.querySelector('.spinner').classList.remove('show');
 }
-const API_URL = 'https://api.themoviedb.org/3/';
-const API_KEY = 'f6fae4956dab7f7476dab631a534eac7';
 
 async function getPopularMovies() {
   const { results } = await fetchApiData('movie/popular');
-  /* console.log(results); */
+  console.log(results);
+  results.forEach((movie) => {
+    console.log(movie.id);
+  });
   results.forEach((movie) => {
     const div = document.createElement('div');
     div.classList.add('card');
@@ -48,7 +59,6 @@ async function getPopularMovies() {
 
 async function getPopularTvShows() {
   const { results } = await fetchApiData('tv/popular');
-  /* console.log(results); */
 
   results.forEach((show) => {
     const div = document.createElement('div');
@@ -79,6 +89,7 @@ async function displayMovieDetails() {
 
   const movie = await fetchApiData(`movie/${movieId}`);
   // Overlay for background image
+
   displayBackgroundImage('movie', movie.backdrop_path);
   const div = document.createElement('div');
   div.innerHTML = `   <div class="details-top">
@@ -154,9 +165,73 @@ function displayBackgroundImage(type, backgroundPath) {
   }
 }
 
+async function search() {
+  const queryString = window.location.search;
+  const urlParams = new URLSearchParams(queryString);
+
+  global.search.type = urlParams.get('type');
+  global.search.term = urlParams.get('search-term');
+
+  if (global.search.term !== '' && global.search.term !== null) {
+    const { results, total_pages, page } = await searchApiData();
+
+    if (results.length === 0) {
+      displayAlert('No results found');
+      return;
+    }
+
+    displaySearchResults(results);
+
+    document.querySelector('#search-term').value = '';
+  } else {
+    displayAlert('Please enter a search term');
+  }
+}
+
+function displaySearchResults(results) {
+  results.forEach((result) => {
+    const div = document.createElement('div');
+    div.classList.add('card');
+    div.innerHTML = ` 
+          <a href="${global.search.type}-details.html?id=${result.id}">
+            <img
+              src="https://image.tmdb.org/t/p/w500${result.poster_path}"
+              class="card-img-top"
+              alt="${
+                global.search.type === 'movie' ? result.title : result.name
+              }"
+            />
+          </a>
+          <div class="card-body">
+            <h5 class="card-title">${
+              global.search.type === 'movie' ? result.title : result.name
+            }</h5>
+            <p class="card-text">
+              <small class="text-muted">${
+                global.search.type === 'movie'
+                  ? result.release_date
+                  : result.first_air_date
+              }</small>
+            </p>
+          </div>
+        `;
+    document.getElementById('search-results').appendChild(div);
+  });
+}
+
+function displayAlert(message) {
+  const alertDiv = document.createElement('div');
+  alertDiv.classList.add('alert');
+  alertDiv.appendChild(document.createTextNode(message));
+  document.getElementById('alert').appendChild(alertDiv);
+  setTimeout(() => {
+    alertDiv.remove();
+  }, 4000);
+}
+
 async function displaySlider() {
   const { results } = await fetchApiData('movie/now_playing');
-  console.log(results);
+
   results.forEach((result) => {
     const div = document.createElement('div');
     div.classList.add('swiper-slide');
@@ -167,7 +242,8 @@ async function displaySlider() {
             <h4 class="swiper-rating">
               <i class="fas fa-star text-secondary"></i> ${result.vote_average} /10 
             </h4>
-           `;
+           `; //
+
     document.querySelector('.swiper-wrapper').appendChild(div);
     initSwiper();
   });
@@ -201,7 +277,6 @@ async function displayTvShowDetails() {
   const showId = window.location.search.split('=')[1];
   console.log(showId);
   const show = await fetchApiData(`tv/${showId}`);
-  console.log(show);
 
   const div = document.createElement('div');
 
@@ -252,6 +327,8 @@ async function displayTvShowDetails() {
 }
 
 async function fetchApiData(endpoint) {
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiUrl;
   showSpinner();
   try {
     const response = await fetch(
@@ -262,7 +339,27 @@ async function fetchApiData(endpoint) {
     }
     const data = await response.json();
     hideSpinner();
-    console.log(data);
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching data', error);
+  }
+}
+
+async function searchApiData() {
+  const API_KEY = global.api.apiKey;
+  const API_URL = global.api.apiUrl;
+  showSpinner();
+  try {
+    const response = await fetch(
+      `${API_URL}search/${global.search.type}?api_key=${API_KEY}&language=en-US&query=${global.search.term}`
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error ! status:${response.status}`);
+    }
+    const data = await response.json();
+    hideSpinner();
+
     return data;
   } catch (error) {
     console.error('Error fetching data', error);
@@ -281,7 +378,7 @@ function init() {
   } else if (global.currentPage === '/tv-details.html') {
     displayTvShowDetails();
   } else if (global.currentPage === '/search.html') {
-    console.log('Search');
+    search();
   }
 
   highlightActiveLink();
